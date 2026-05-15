@@ -20,8 +20,16 @@ const navItems = [
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
+import { createClient } from "@/lib/supabase/client";
+
 export function Sidebar() {
   const pathname = usePathname();
+  const supabase = createClient();
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    window.location.href = "/";
+  };
 
   return (
     <div className="flex h-screen w-64 flex-col glass-panel border-r border-white/10">
@@ -30,7 +38,7 @@ export function Sidebar() {
           <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-[#3b82f6] to-[#8b5cf6]">
             <BrainCircuit className="w-5 h-5 text-white" />
           </div>
-          <span className="font-bold text-lg tracking-tight">AI Resume</span>
+          <span className="font-bold text-lg tracking-tight text-white">AI Resume</span>
         </Link>
       </div>
 
@@ -64,7 +72,10 @@ export function Sidebar() {
       </nav>
 
       <div className="p-4 border-t border-white/10">
-        <button className="flex items-center gap-3 px-4 py-3 rounded-xl w-full text-gray-400 hover:text-white hover:bg-white/5 transition-all">
+        <button 
+          onClick={handleSignOut}
+          className="flex items-center gap-3 px-4 py-3 rounded-xl w-full text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+        >
           <LogOut className="w-5 h-5" />
           <span className="font-medium">Sign Out</span>
         </button>
