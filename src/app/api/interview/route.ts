@@ -26,8 +26,8 @@ export async function POST(req: NextRequest) {
           - Provide subtle, constructive feedback if the user's answer is weak.`
         },
         ...messages.map((m: any) => ({
-          role: m.role === "ai" ? "assistant" : "user",
-          content: m.text
+          role: (m.role === "ai" ? "assistant" : "user") as "assistant" | "user",
+          content: m.text as string
         }))
       ],
     });
