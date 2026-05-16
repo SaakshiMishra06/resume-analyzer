@@ -116,18 +116,58 @@ export default function SettingsPage() {
                     )}
                   </div>
                   <div>
+                    <input 
+                      type="file" 
+                      id="avatar-upload" 
+                      className="hidden" 
+                      accept="image/*"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setSaving(true);
+                          try {
+                            const fileExt = file.name.split('.').pop();
+                            const fileName = `${Math.random()}.${fileExt}`;
+                            const filePath = `avatars/${fileName}`;
+
+                            // Upload to Supabase Storage
+                            const { error: uploadError } = await supabase.storage
+                              .from('avatars')
+                              .upload(filePath, file);
+
+                            if (uploadError) throw uploadError;
+
+                            // Get Public URL
+                            const { data: { publicUrl } } = supabase.storage
+                              .from('avatars')
+                              .getPublicUrl(filePath);
+
+                            // Update local state and Supabase user metadata
+                            setProfile({ ...profile, avatarUrl: publicUrl });
+                            await supabase.auth.updateUser({
+                              data: { avatar_url: publicUrl }
+                            });
+                            
+                            setSuccess(true);
+                            setTimeout(() => setSuccess(false), 3000);
+                          } catch (error: any) {
+                            alert("Error uploading: " + error.message + "\n\nMake sure you have created a 'avatars' bucket in Supabase and set it to 'Public'.");
+                          } finally {
+                            setSaving(false);
+                          }
+                        }
+                      }}
+                    />
                     <Button 
                       variant="outline" 
                       size="sm" 
                       className="mb-2"
-                      onClick={() => {
-                        const url = prompt("Enter Image URL for profile picture:");
-                        if (url) setProfile({ ...profile, avatarUrl: url });
-                      }}
+                      disabled={saving}
+                      onClick={() => document.getElementById('avatar-upload')?.click()}
                     >
-                      Change Avatar
+                      {saving ? "Uploading..." : "Change Avatar"}
                     </Button>
-                    <p className="text-xs text-gray-500">Paste an image URL to update your avatar.</p>
+                    <p className="text-xs text-gray-500">JPG, GIF or PNG. 1MB max.</p>
                   </div>
                 </div>
 
