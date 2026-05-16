@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
-// @ts-ignore
-import * as pdfjs from "pdfjs-dist/legacy/build/pdf.js";
+import { createRequire } from "module";
+
+const require = createRequire(import.meta.url);
+const pdf = require("pdf-parse");
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -17,31 +19,21 @@ export async function POST(req: NextRequest) {
     }
 
     const bytes = await file.arrayBuffer();
-    const buffer = new Uint8Array(bytes);
+    const buffer = Buffer.from(bytes);
     
     let resumeText = "";
 
     try {
       if (file.type === "application/pdf") {
-        const loadingTask = pdfjs.getDocument({ data: buffer });
-        const pdf = await loadingTask.promise;
-        let fullText = "";
-        
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const textContent = await page.getTextContent();
-          const pageText = textContent.items
-            .map((item: any) => item.str)
-            .join(" ");
-          fullText += pageText + "\n";
-        }
-        resumeText = fullText;
+        // Use the require-loaded pdf-parse
+        const data = await pdf(buffer);
+        resumeText = data.text;
       } else {
-        resumeText = Buffer.from(bytes).toString("utf-8");
+        resumeText = buffer.toString("utf-8");
       }
     } catch (parseError) {
       console.error("PDF Parsing Error:", parseError);
-      return NextResponse.json({ error: "Could not read this PDF file. Please try a different one." }, { status: 400 });
+      return NextResponse.json({ error: "Could not read this file. Please ensure it is a valid PDF." }, { status: 400 });
     }
 
     if (!resumeText || resumeText.length < 50) {
