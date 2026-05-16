@@ -5,12 +5,22 @@ import { motion, AnimatePresence } from "framer-motion";
 import { PageTransition } from "@/components/animations/page-transition";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { UploadCloud, FileText, CheckCircle2, AlertCircle, Sparkles } from "lucide-react";
+import { UploadCloud, CheckCircle2, AlertCircle, Sparkles, Brain } from "lucide-react";
+
+interface AnalysisResult {
+  score: number;
+  summary: string;
+  strengths: string[];
+  improvements: string[];
+  suggestions: { title: string; desc: string }[];
+  level: string;
+}
 
 export default function ResumeAnalysis() {
   const [file, setFile] = React.useState<File | null>(null);
   const [isUploading, setIsUploading] = React.useState(false);
-  const [isAnalyzed, setIsAnalyzed] = React.useState(false);
+  const [results, setResults] = React.useState<AnalysisResult | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -20,17 +30,37 @@ export default function ResumeAnalysis() {
     e.preventDefault();
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       setFile(e.dataTransfer.files[0]);
+      setError(null);
     }
   };
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
     if (!file) return;
+    
     setIsUploading(true);
-    // Simulate API call
-    setTimeout(() => {
+    setError(null);
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to analyze resume");
+      }
+
+      setResults(data);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
       setIsUploading(false);
-      setIsAnalyzed(true);
-    }, 3000);
+    }
   };
 
   return (
@@ -42,7 +72,7 @@ export default function ResumeAnalysis() {
         </div>
 
         <AnimatePresence mode="wait">
-          {!isAnalyzed ? (
+          {!results ? (
             <motion.div
               key="upload"
               initial={{ opacity: 0, y: 20 }}
@@ -66,7 +96,7 @@ export default function ResumeAnalysis() {
                             {file ? file.name : "Drag & Drop your resume here"}
                           </h3>
                           <p className="text-gray-400 max-w-sm">
-                            {file ? "Ready to analyze" : "Supports PDF, DOCX up to 5MB."}
+                            {file ? "Ready to analyze" : "Supports PDF files up to 5MB."}
                           </p>
                         </div>
                         {!file ? (
@@ -77,8 +107,11 @@ export default function ResumeAnalysis() {
                             <input
                               type="file"
                               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
-                              accept=".pdf,.doc,.docx"
-                              onChange={(e) => setFile(e.target.files?.[0] || null)}
+                              accept=".pdf"
+                              onChange={(e) => {
+                                setFile(e.target.files?.[0] || null);
+                                setError(null);
+                              }}
                             />
                           </div>
                         ) : (
@@ -90,6 +123,12 @@ export default function ResumeAnalysis() {
                             </Button>
                           </div>
                         )}
+                        {error && (
+                          <div className="flex items-center gap-2 text-red-400 text-sm bg-red-400/10 px-4 py-2 rounded-lg border border-red-400/20">
+                            <AlertCircle className="w-4 h-4" />
+                            {error}
+                          </div>
+                        )}
                       </>
                     ) : (
                       <div className="py-12 flex flex-col items-center">
@@ -97,7 +136,7 @@ export default function ResumeAnalysis() {
                           <div className="absolute inset-0 border-t-2 border-primary rounded-full animate-spin" />
                           <div className="absolute inset-2 border-r-2 border-accent rounded-full animate-spin direction-reverse" />
                           <div className="absolute inset-0 flex items-center justify-center">
-                            <BrainIcon className="w-8 h-8 text-white animate-pulse" />
+                            <Brain className="w-8 h-8 text-white animate-pulse" />
                           </div>
                         </div>
                         <h3 className="text-xl font-semibold text-white mb-2">Analyzing Resume...</h3>
@@ -119,7 +158,7 @@ export default function ResumeAnalysis() {
                 <Card className="glass md:col-span-1 border-primary/30 relative overflow-hidden">
                    <div className="absolute inset-0 bg-primary/5"></div>
                    <CardContent className="p-8 text-center relative z-10 flex flex-col items-center justify-center h-full">
-                     <div className="relative w-32 h-32 mb-4">
+                      <div className="relative w-32 h-32 mb-4">
                         <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                           <circle cx="50" cy="50" r="40" stroke="rgba(255,255,255,0.1)" strokeWidth="8" fill="none" />
                           <motion.circle 
@@ -129,7 +168,7 @@ export default function ResumeAnalysis() {
                             fill="none" 
                             strokeDasharray="251.2" 
                             strokeDashoffset="251.2"
-                            animate={{ strokeDashoffset: 251.2 - (251.2 * 0.94) }}
+                            animate={{ strokeDashoffset: 251.2 - (251.2 * (results.score / 100)) }}
                             transition={{ duration: 1.5, ease: "easeOut" }}
                           />
                           <defs>
@@ -140,12 +179,12 @@ export default function ResumeAnalysis() {
                           </defs>
                         </svg>
                         <div className="absolute inset-0 flex items-center justify-center flex-col">
-                           <span className="text-4xl font-bold text-white">94</span>
+                           <span className="text-4xl font-bold text-white">{results.score}</span>
                            <span className="text-xs text-gray-400">/ 100</span>
                         </div>
-                     </div>
-                     <h3 className="text-xl font-bold text-white mb-1">Excellent</h3>
-                     <p className="text-sm text-gray-400">Your ATS compatibility score</p>
+                      </div>
+                      <h3 className="text-xl font-bold text-white mb-1">{results.level}</h3>
+                      <p className="text-sm text-gray-400">Your ATS compatibility score</p>
                    </CardContent>
                 </Card>
 
@@ -155,18 +194,16 @@ export default function ResumeAnalysis() {
                   </CardHeader>
                   <CardContent>
                     <p className="text-gray-300 leading-relaxed mb-6">
-                      Your resume is well-structured and clearly highlights your experience as a Frontend Engineer. You have strong keywords related to modern web development (React, TypeScript, Next.js). However, there is a lack of quantifiable metrics in your most recent role, which could impact how recruiters perceive your impact.
+                      {results.summary}
                     </p>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4">
                         <div className="flex items-center gap-2 mb-2">
                            <CheckCircle2 className="w-5 h-5 text-green-400" />
                            <h4 className="font-semibold text-green-400">Strengths</h4>
                         </div>
                         <ul className="text-sm text-gray-300 space-y-1 list-disc list-inside">
-                          <li>Clear, professional formatting</li>
-                          <li>Strong technical skill section</li>
-                          <li>No spelling/grammar errors</li>
+                          {results.strengths.map((s, i) => <li key={i}>{s}</li>)}
                         </ul>
                       </div>
                       <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
@@ -175,9 +212,7 @@ export default function ResumeAnalysis() {
                            <h4 className="font-semibold text-red-400">Needs Work</h4>
                         </div>
                         <ul className="text-sm text-gray-300 space-y-1 list-disc list-inside">
-                          <li>Missing business impact metrics</li>
-                          <li>Summary is too generic</li>
-                          <li>Missing soft skills</li>
+                          {results.improvements.map((imp, i) => <li key={i}>{imp}</li>)}
                         </ul>
                       </div>
                     </div>
@@ -191,11 +226,7 @@ export default function ResumeAnalysis() {
                 </CardHeader>
                 <CardContent>
                    <div className="space-y-4">
-                     {[
-                       { title: "Add quantifiable results to 'Senior Developer' role", desc: "Change 'Improved performance' to 'Improved load time by 40% through code splitting'." },
-                       { title: "Include specific Cloud Provider keywords", desc: "You mentioned 'Cloud deployment' but ATS systems look for specific terms like AWS, Azure, or GCP." },
-                       { title: "Shorten Education section", desc: "Since you have 5+ years of experience, move education to the bottom and remove the GPA." },
-                     ].map((item, i) => (
+                     {results.suggestions.map((item, i) => (
                         <div key={i} className="flex gap-4 p-4 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
                            <div className="mt-1">
                              <Sparkles className="w-5 h-5 text-primary" />
@@ -211,40 +242,13 @@ export default function ResumeAnalysis() {
               </Card>
 
               <div className="flex justify-end gap-4">
-                 <Button variant="outline" onClick={() => { setIsAnalyzed(false); setFile(null); }}>Upload New</Button>
-                 <Button variant="gradient">Download PDF Report</Button>
+                 <Button variant="outline" onClick={() => { setResults(null); setFile(null); }}>Upload New</Button>
+                 <Button variant="gradient">Print Analysis</Button>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
     </PageTransition>
-  );
-}
-
-function BrainIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" />
-      <path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z" />
-      <path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4" />
-      <path d="M17.599 6.5a3 3 0 0 0 .399-1.375" />
-      <path d="M6.003 5.125A3 3 0 0 0 6.401 6.5" />
-      <path d="M3.477 10.896a4 4 0 0 1 .585-.396" />
-      <path d="M19.938 10.5a4 4 0 0 1 .585.396" />
-      <path d="M6 18a4 4 0 0 1-1.967-.516" />
-      <path d="M19.967 17.484A4 4 0 0 1 18 18" />
-    </svg>
   );
 }

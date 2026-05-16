@@ -5,27 +5,51 @@ import { motion, AnimatePresence } from "framer-motion";
 import { PageTransition } from "@/components/animations/page-transition";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Mic, Square, Play, Send, Bot, User, Settings2 } from "lucide-react";
+import { Mic, Square, Play, Send, Bot, User, Settings2, Loader2 } from "lucide-react";
 
 export default function InterviewCoach() {
   const [isRecording, setIsRecording] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(false);
   const [messages, setMessages] = React.useState([
-    { role: "ai", text: "Hello Alex. I've reviewed your resume. We'll be doing a mock interview for the Senior Frontend Engineer role. Are you ready for the first question?" }
+    { role: "ai", text: "Hello! I'm your AI Interview Coach. I've reviewed your background. Are you ready to start our mock interview for a Senior Engineering role?" }
   ]);
   const [inputText, setInputText] = React.useState("");
+  const scrollRef = React.useRef<HTMLDivElement>(null);
 
-  const handleSend = () => {
-    if (!inputText.trim()) return;
-    setMessages(prev => [...prev, { role: "user", text: inputText }]);
-    setInputText("");
+  React.useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  const handleSend = async () => {
+    if (!inputText.trim() || isLoading) return;
     
-    // Mock AI response
-    setTimeout(() => {
-      setMessages(prev => [...prev, { 
-        role: "ai", 
-        text: "Great. Can you describe a time when you had to optimize the performance of a complex React application? What specific techniques did you use, and what was the impact?" 
-      }]);
-    }, 1500);
+    const userMessage = { role: "user", text: inputText };
+    const newMessages = [...messages, userMessage];
+    
+    setMessages(newMessages);
+    setInputText("");
+    setIsLoading(true);
+
+    try {
+      const response = await fetch("/api/interview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: newMessages }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) throw new Error(data.error);
+
+      setMessages(prev => [...prev, { role: "ai", text: data.text }]);
+    } catch (err) {
+      console.error(err);
+      setMessages(prev => [...prev, { role: "ai", text: "I'm having trouble connecting to my brain right now. Please try again." }]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -42,10 +66,10 @@ export default function InterviewCoach() {
           </Button>
         </div>
 
-        <div className="flex-1 flex gap-6 min-h-0">
+        <div className="flex-1 flex flex-col md:flex-row gap-6 min-h-0">
           {/* Main Chat Interface */}
           <Card className="glass flex-1 flex flex-col overflow-hidden">
-            <CardContent className="flex-1 overflow-y-auto p-6 space-y-6">
+            <CardContent ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6">
               {messages.map((msg, i) => (
                 <motion.div 
                   key={i}
@@ -67,7 +91,20 @@ export default function InterviewCoach() {
                   </div>
                 </motion.div>
               ))}
-              <div className="h-4" />
+              {isLoading && (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex gap-4"
+                >
+                  <div className="w-10 h-10 rounded-full bg-primary/20 text-primary flex items-center justify-center">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  </div>
+                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10 rounded-tl-sm text-gray-500 italic">
+                    AI is thinking...
+                  </div>
+                </motion.div>
+              )}
             </CardContent>
             
             {/* Input Area */}
@@ -88,24 +125,11 @@ export default function InterviewCoach() {
                     onChange={(e) => setInputText(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleSend()}
                     placeholder={isRecording ? "Listening..." : "Type your answer..."}
-                    disabled={isRecording}
+                    disabled={isRecording || isLoading}
                     className="w-full h-12 bg-white/5 border border-white/10 rounded-full px-6 text-white placeholder:text-gray-500 focus:outline-none focus:border-primary transition-colors disabled:opacity-50"
                   />
-                  {isRecording && (
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                      {[1, 2, 3, 4].map(i => (
-                        <motion.div
-                          key={i}
-                          animate={{ height: ["20%", "80%", "20%"] }}
-                          transition={{ duration: 1, repeat: Infinity, delay: i * 0.1 }}
-                          className="w-1 bg-primary rounded-full"
-                          style={{ height: "20%" }}
-                        />
-                      ))}
-                    </div>
-                  )}
                 </div>
-                <Button variant="gradient" size="icon" onClick={handleSend} disabled={!inputText.trim()}>
+                <Button variant="gradient" size="icon" onClick={handleSend} disabled={!inputText.trim() || isLoading}>
                   <Send className="w-5 h-5" />
                 </Button>
               </div>
@@ -113,8 +137,7 @@ export default function InterviewCoach() {
           </Card>
 
           {/* Right Sidebar - Feedback & Stats */}
-          <div className="w-80 flex flex-col gap-6">
-            {/* Video Placeholder */}
+          <div className="hidden lg:flex w-80 flex-col gap-6">
             <Card className="glass overflow-hidden">
               <div className="aspect-video bg-black relative border-b border-white/10">
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -123,58 +146,33 @@ export default function InterviewCoach() {
                    </div>
                    <span className="text-sm text-gray-400 font-medium">AI Interviewer</span>
                 </div>
-                {/* Speaking Indicator */}
-                <div className="absolute bottom-3 right-3 flex items-center gap-1">
-                  {[1, 2, 3].map(i => (
-                    <motion.div
-                      key={i}
-                      animate={{ height: ["4px", "12px", "4px"] }}
-                      transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.15 }}
-                      className="w-1 bg-green-500 rounded-full"
-                      style={{ height: "4px" }}
-                    />
-                  ))}
-                </div>
               </div>
               <CardContent className="p-4">
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-400">Time Elapsed</span>
-                  <span className="text-white font-medium tracking-wider">04:23</span>
+                  <span className="text-gray-400">Status</span>
+                  <span className="text-green-400 font-medium tracking-wider flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                    Live Connection
+                  </span>
                 </div>
               </CardContent>
             </Card>
 
             <Card className="glass flex-1">
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg">Real-time Feedback</CardTitle>
+                <CardTitle className="text-lg">Real-time Stats</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-gray-400">Speaking Pace</span>
-                      <span className="text-green-400">Good</span>
-                    </div>
-                    <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-                      <div className="h-full bg-green-500 w-[65%]" />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-gray-400">Confidence</span>
-                      <span className="text-primary">82%</span>
-                    </div>
-                    <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-                      <div className="h-full bg-primary w-[82%]" />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-gray-400">Filler Words</span>
-                      <span className="text-amber-400">Needs Work</span>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">Try to reduce the use of "um" and "like".</p>
-                  </div>
+              <CardContent className="space-y-6">
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                   <h4 className="text-xs text-gray-400 uppercase mb-2">Current Focus</h4>
+                   <p className="text-sm text-white font-medium">Technical Problem Solving</p>
+                </div>
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                   <h4 className="text-xs text-gray-400 uppercase mb-2">AI Model</h4>
+                   <p className="text-sm text-white font-medium">GPT-4o (Advanced)</p>
+                </div>
+                <div className="mt-auto pt-6 text-center">
+                   <p className="text-xs text-gray-500 italic">"The AI tracks your answers to provide a final score at the end."</p>
                 </div>
               </CardContent>
             </Card>
