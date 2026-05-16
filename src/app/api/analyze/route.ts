@@ -1,16 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-
 export async function POST(req: NextRequest) {
   try {
     const { text } = await req.json();
+    const apiKey = process.env.GEMINI_API_KEY;
+
+    if (!apiKey) {
+      return NextResponse.json({ error: "Gemini API Key is missing in Vercel settings." }, { status: 500 });
+    }
 
     if (!text || text.length < 50) {
       return NextResponse.json({ error: "No valid resume text provided" }, { status: 400 });
     }
 
+    const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ 
       model: "gemini-1.5-flash",
       generationConfig: { responseMimeType: "application/json" }
@@ -37,6 +41,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(analysis);
   } catch (error: any) {
     console.error("Gemini Analysis Error:", error);
-    return NextResponse.json({ error: "Failed to analyze resume with Gemini. Please check your API key." }, { status: 500 });
+    return NextResponse.json({ error: "AI analysis failed. Please try again in a moment." }, { status: 500 });
   }
 }
