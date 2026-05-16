@@ -10,32 +10,38 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Gemini API Key is missing." }, { status: 500 });
     }
 
-    if (!messages || !Array.isArray(messages)) {
-      return NextResponse.json({ error: "Invalid messages format" }, { status: 400 });
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-pro"];
+    let lastError = null;
+
+    for (const modelName of modelsToTry) {
+      try {
+        const model = genAI.getGenerativeModel({ model: modelName });
+
+        const chat = model.startChat({
+          history: messages.slice(0, -1).map((m: any) => ({
+            role: m.role === "ai" ? "model" : "user",
+            parts: [{ text: m.text }],
+          })),
+          generationConfig: {
+            maxOutputTokens: 200,
+          },
+        });
+
+        const lastMessage = messages[messages.length - 1].text;
+        const result = await chat.sendMessage(lastMessage);
+        const response = await result.response;
+        return NextResponse.json({ text: response.text() });
+      } catch (err: any) {
+        console.error(`Failed with model ${modelName}:`, err.message);
+        lastError = err;
+        continue;
+      }
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
-
-    // Convert message history for Gemini
-    const chat = model.startChat({
-      history: messages.slice(0, -1).map((m: any) => ({
-        role: m.role === "ai" ? "model" : "user",
-        parts: [{ text: m.text }],
-      })),
-      generationConfig: {
-        maxOutputTokens: 200,
-      },
-    });
-
-    const lastMessage = messages[messages.length - 1].text;
-    const result = await chat.sendMessage(lastMessage);
-    const response = await result.response;
-    const aiMessage = response.text();
-
-    return NextResponse.json({ text: aiMessage });
+    throw lastError;
   } catch (error: any) {
     console.error("Gemini Interview Error:", error);
-    return NextResponse.json({ error: "Failed to connect to Gemini AI" }, { status: 500 });
+    return NextResponse.json({ error: `AI Error: ${error.message}` }, { status: 500 });
   }
 }
