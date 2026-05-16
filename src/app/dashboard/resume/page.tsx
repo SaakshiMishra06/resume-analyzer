@@ -5,11 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { PageTransition } from "@/components/animations/page-transition";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { UploadCloud, CheckCircle2, AlertCircle, Sparkles, Brain, Loader2 } from "lucide-react";
-import * as pdfjs from "pdfjs-dist";
-
-// Configure PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+import { UploadCloud, CheckCircle2, AlertCircle, Sparkles, Brain } from "lucide-react";
 
 interface AnalysisResult {
   score: number;
@@ -28,6 +24,10 @@ export default function ResumeAnalysis() {
   const [error, setError] = React.useState<string | null>(null);
 
   const extractTextFromPDF = async (file: File): Promise<string> => {
+    // Dynamic import to prevent SSR errors
+    const pdfjs = await import("pdfjs-dist");
+    pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+    
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
     let fullText = "";
@@ -50,7 +50,6 @@ export default function ResumeAnalysis() {
     setError(null);
 
     try {
-      // 1. Extract text in the browser
       let text = "";
       if (file.type === "application/pdf") {
         text = await extractTextFromPDF(file);
@@ -62,7 +61,6 @@ export default function ResumeAnalysis() {
         throw new Error("Could not extract enough text from the resume. Please check the file.");
       }
 
-      // 2. Send text to the API
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
