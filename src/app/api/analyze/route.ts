@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Groq from "groq-sdk";
+import { createClient } from "@/lib/supabase/server";
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
@@ -8,6 +9,10 @@ const groq = new Groq({
 export async function POST(req: NextRequest) {
   try {
     const { text } = await req.json();
+    const supabase = await createClient();
+    
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
 
     if (!process.env.GROQ_API_KEY) {
       return NextResponse.json({ error: "Groq API Key is missing. Please add it to Vercel." }, { status: 500 });
@@ -41,6 +46,17 @@ export async function POST(req: NextRequest) {
     });
 
     const analysis = JSON.parse(response.choices[0].message.content || "{}");
+
+    // Save to Database for History if user is logged in
+    if (user) {
+      await supabase.from("analyses").insert({
+        user_id: user.id,
+        score: analysis.score,
+        level: analysis.level,
+        summary: analysis.summary
+      });
+    }
+
     return NextResponse.json(analysis);
   } catch (error: any) {
     console.error("Groq Analysis Error:", error);
