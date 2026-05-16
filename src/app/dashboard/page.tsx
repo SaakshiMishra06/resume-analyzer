@@ -15,12 +15,29 @@ const data = [
   { name: "Jun", score: 94 },
 ];
 
+import { createClient } from "@/lib/supabase/client";
+import React from "react";
+
 export default function Dashboard() {
+  const [userName, setUserName] = React.useState("User");
+  const supabase = createClient();
+
+  React.useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const name = user.user_metadata?.full_name || user.user_metadata?.first_name || user.email?.split('@')[0] || "User";
+        setUserName(name);
+      }
+    };
+    fetchUser();
+  }, []);
+
   return (
     <PageTransition>
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2">Welcome back, Alex</h1>
+          <h1 className="text-3xl font-bold text-white mb-2 text-gradient">Welcome back, {userName}</h1>
           <p className="text-gray-400">Here's an overview of your career progress.</p>
         </div>
       </div>
