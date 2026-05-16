@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
-import * as pdfjs from "pdfjs-dist";
-
-// Initialize PDF.js worker
 // @ts-ignore
-import("pdfjs-dist/build/pdf.worker.mjs");
+import * as pdfjs from "pdfjs-dist/legacy/build/pdf.js";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
