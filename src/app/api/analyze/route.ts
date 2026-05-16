@@ -36,7 +36,12 @@ export async function POST(req: NextRequest) {
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    const analysis = JSON.parse(response.text());
+    let responseText = response.text();
+    
+    // Clean up potential markdown blocks (e.g., ```json ... ```)
+    responseText = responseText.replace(/```json|```/g, "").trim();
+    
+    const analysis = JSON.parse(responseText);
 
     return NextResponse.json(analysis);
   } catch (error: any) {
