@@ -46,6 +46,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(analysis);
   } catch (error: any) {
     console.error("Gemini Analysis Error:", error);
-    return NextResponse.json({ error: "AI analysis failed. Please try again in a moment." }, { status: 500 });
+    return NextResponse.json({ error: `AI Analysis Error: ${error.message}` }, { status: 500 });
   }
 }
