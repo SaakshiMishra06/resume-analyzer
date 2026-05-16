@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
         const model = genAI.getGenerativeModel({ 
           model: modelName,
           generationConfig: { responseMimeType: "application/json" }
-        });
+        }, { apiVersion: "v1" });
 
         const prompt = `You are an expert ATS (Applicant Tracking System) and professional resume reviewer. 
         Analyze the provided resume text and return a structured JSON response with the following fields:

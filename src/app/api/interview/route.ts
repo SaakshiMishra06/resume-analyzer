@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
 
     for (const modelName of modelsToTry) {
       try {
-        const model = genAI.getGenerativeModel({ model: modelName });
+        const model = genAI.getGenerativeModel({ model: modelName }, { apiVersion: "v1" });
 
         const chat = model.startChat({
           history: messages.slice(0, -1).map((m: any) => ({
