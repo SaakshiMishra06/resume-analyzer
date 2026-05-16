@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export async function POST(req: NextRequest) {
   try {
@@ -7,50 +6,38 @@ export async function POST(req: NextRequest) {
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
-      return NextResponse.json({ error: "Gemini API Key is missing." }, { status: 500 });
+      return NextResponse.json({ error: "API Key is missing." }, { status: 500 });
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-pro"];
-    let lastError = null;
+    const prompt = `Analyze this resume and return ONLY a raw JSON object. 
+    Fields: score (0-100), summary, strengths (array), improvements (array), suggestions (array of {title, desc}), level, timestamp.
+    
+    Resume: ${text}`;
 
-    for (const modelName of modelsToTry) {
-      try {
-        const model = genAI.getGenerativeModel({ model: modelName }, { apiVersion: "v1" });
-
-        const prompt = `Analyze the provided resume text and return a structured JSON response. 
-        IMPORTANT: Return ONLY the raw JSON object. Do not include any markdown formatting, backticks, or explanation.
-        
-        Fields required:
-        - score: (number 0-100)
-        - summary: (brief professional overview)
-        - strengths: (array of 3 strings)
-        - improvements: (array of 3 strings)
-        - suggestions: (array of 3 objects with 'title' and 'desc')
-        - level: (string: 'Poor', 'Fair', 'Good', 'Excellent')
-        - timestamp: (string: current ISO timestamp)
-        
-        Resume Text: ${text}`;
-
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        let responseText = response.text();
-        
-        // Robust cleaning for JSON
-        responseText = responseText.replace(/```json|```/g, "").trim();
-        const analysis = JSON.parse(responseText);
-
-        return NextResponse.json(analysis);
-      } catch (err: any) {
-        console.error(`Failed with ${modelName}:`, err.message);
-        lastError = err;
-        continue;
+    // Direct REST API call - Bulletproof method
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { responseMimeType: "application/json" }
+        }),
       }
+    );
+
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.error?.message || "AI failed to respond");
     }
 
-    throw lastError;
+    const analysis = JSON.parse(data.candidates[0].content.parts[0].text);
+    return NextResponse.json(analysis);
+
   } catch (error: any) {
-    console.error("Gemini Analysis Error:", error);
-    return NextResponse.json({ error: `AI Analysis Error: ${error.message}` }, { status: 500 });
+    console.error("AI Error:", error);
+    return NextResponse.json({ error: `AI Error: ${error.message}` }, { status: 500 });
   }
 }
