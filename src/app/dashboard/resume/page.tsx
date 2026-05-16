@@ -243,7 +243,7 @@ export default function ResumeAnalysis() {
 
               <div className="flex justify-end gap-4">
                  <Button variant="outline" onClick={() => { setResults(null); setFile(null); }}>Upload New</Button>
-                 <Button variant="gradient">Print Analysis</Button>
+                 <Button variant="gradient" onClick={() => window.print()}>Print Analysis</Button>
               </div>
             </motion.div>
           )}
