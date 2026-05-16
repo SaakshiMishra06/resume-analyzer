@@ -1,42 +1,49 @@
 import { NextRequest, NextResponse } from "next/server";
+import Groq from "groq-sdk";
+
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
+});
 
 export async function POST(req: NextRequest) {
   try {
     const { text } = await req.json();
-    const apiKey = process.env.GEMINI_API_KEY;
 
-    if (!apiKey) {
-      return NextResponse.json({ error: "API Key is missing." }, { status: 500 });
+    if (!process.env.GROQ_API_KEY) {
+      return NextResponse.json({ error: "Groq API Key is missing. Please add it to Vercel." }, { status: 500 });
     }
 
-    const prompt = `Analyze this resume and return ONLY a raw JSON object. 
-    Fields: score (0-100), summary, strengths (array), improvements (array), suggestions (array of {title, desc}), level, timestamp.
-    
-    Resume: ${text}`;
-
-    // Direct REST API call - Bulletproof method
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }]
-        }),
-      }
-    );
-
-    const data = await response.json();
-    
-    if (!response.ok) {
-      throw new Error(data.error?.message || "AI failed to respond");
+    if (!text || text.length < 50) {
+      return NextResponse.json({ error: "No valid resume text provided" }, { status: 400 });
     }
 
-    const analysis = JSON.parse(data.candidates[0].content.parts[0].text);
+    const response = await groq.chat.completions.create({
+      model: "llama-3.1-70b-versatile",
+      messages: [
+        {
+          role: "system",
+          content: `You are an expert ATS (Applicant Tracking System) and professional resume reviewer. 
+          Analyze the provided resume text and return a structured JSON response with the following fields:
+          - score: (number 0-100)
+          - summary: (brief professional overview)
+          - strengths: (array of 3 strings)
+          - improvements: (array of 3 strings)
+          - suggestions: (array of 3 objects with 'title' and 'desc')
+          - level: (string: 'Poor', 'Fair', 'Good', 'Excellent')
+          - timestamp: (string: current ISO timestamp)`
+        },
+        {
+          role: "user",
+          content: `Analyze this resume text: \n\n ${text}`
+        }
+      ],
+      response_format: { type: "json_object" }
+    });
+
+    const analysis = JSON.parse(response.choices[0].message.content || "{}");
     return NextResponse.json(analysis);
-
   } catch (error: any) {
-    console.error("AI Error:", error);
-    return NextResponse.json({ error: `AI Error: ${error.message}` }, { status: 500 });
+    console.error("Groq Analysis Error:", error);
+    return NextResponse.json({ error: `AI Analysis Error: ${error.message}` }, { status: 500 });
   }
 }
