@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 // @ts-ignore
-import pdf from "pdf-parse/lib/pdf-parse.js";
+import pdf from "pdf-parse/lib/pdf-parse";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
