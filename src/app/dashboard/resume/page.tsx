@@ -5,7 +5,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { PageTransition } from "@/components/animations/page-transition";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { UploadCloud, CheckCircle2, AlertCircle, Sparkles, Brain } from "lucide-react";
+import { UploadCloud, CheckCircle2, AlertCircle, Sparkles, Brain, Loader2 } from "lucide-react";
+import * as pdfjs from "pdfjs-dist";
+
+// Configure PDF.js worker
+pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 interface AnalysisResult {
   score: number;
@@ -23,16 +27,20 @@ export default function ResumeAnalysis() {
   const [results, setResults] = React.useState<AnalysisResult | null>(null);
   const [error, setError] = React.useState<string | null>(null);
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      setFile(e.dataTransfer.files[0]);
-      setError(null);
+  const extractTextFromPDF = async (file: File): Promise<string> => {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+    let fullText = "";
+    
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items
+        .map((item: any) => item.str)
+        .join(" ");
+      fullText += pageText + "\n";
     }
+    return fullText;
   };
 
   const handleAnalyze = async () => {
@@ -41,13 +49,24 @@ export default function ResumeAnalysis() {
     setIsUploading(true);
     setError(null);
 
-    const formData = new FormData();
-    formData.append("file", file);
-
     try {
+      // 1. Extract text in the browser
+      let text = "";
+      if (file.type === "application/pdf") {
+        text = await extractTextFromPDF(file);
+      } else {
+        text = await file.text();
+      }
+
+      if (!text || text.length < 50) {
+        throw new Error("Could not extract enough text from the resume. Please check the file.");
+      }
+
+      // 2. Send text to the API
       const response = await fetch("/api/analyze", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
       });
 
       const data = await response.json();
@@ -58,7 +77,8 @@ export default function ResumeAnalysis() {
 
       setResults(data);
     } catch (err: any) {
-      setError(err.message);
+      console.error(err);
+      setError(err.message || "Something went wrong during analysis.");
     } finally {
       setIsUploading(false);
     }
@@ -82,11 +102,7 @@ export default function ResumeAnalysis() {
             >
               <Card className="glass border-dashed border-2 border-white/20">
                 <CardContent className="p-12">
-                  <div
-                    onDragOver={handleDragOver}
-                    onDrop={handleDrop}
-                    className="flex flex-col items-center justify-center text-center space-y-6"
-                  >
+                  <div className="flex flex-col items-center justify-center text-center space-y-6">
                     {!isUploading ? (
                       <>
                         <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
@@ -108,7 +124,7 @@ export default function ResumeAnalysis() {
                             <input
                               type="file"
                               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
-                              accept=".pdf"
+                              accept=".pdf,.txt"
                               onChange={(e) => {
                                 setFile(e.target.files?.[0] || null);
                                 setError(null);
@@ -132,7 +148,7 @@ export default function ResumeAnalysis() {
                         )}
                       </>
                     ) : (
-                      <div className="py-12 flex flex-col items-center">
+                      <div className="py-12 flex flex-col items-center text-center">
                         <div className="w-24 h-24 relative mb-8">
                           <div className="absolute inset-0 border-t-2 border-primary rounded-full animate-spin" />
                           <div className="absolute inset-2 border-r-2 border-accent rounded-full animate-spin direction-reverse" />
@@ -141,7 +157,9 @@ export default function ResumeAnalysis() {
                           </div>
                         </div>
                         <h3 className="text-xl font-semibold text-white mb-2">Analyzing Resume...</h3>
-                        <p className="text-gray-400">Our AI is extracting keywords, evaluating format, and scoring ATS compatibility.</p>
+                        <p className="text-gray-400 max-w-md mx-auto">
+                          Our AI is extracting text from your resume and generating a real-time ATS report.
+                        </p>
                       </div>
                     )}
                   </div>
@@ -249,7 +267,7 @@ export default function ResumeAnalysis() {
                 </CardContent>
               </Card>
 
-              <div className="flex justify-end gap-4">
+              <div className="flex justify-end gap-4 no-print">
                  <Button variant="outline" onClick={() => { setResults(null); setFile(null); }}>Upload New</Button>
                  <Button variant="gradient" onClick={() => window.print()}>Print Analysis</Button>
               </div>

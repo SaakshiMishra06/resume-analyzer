@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
-import { createRequire } from "module";
-
-const require = createRequire(import.meta.url);
-const pdf = require("pdf-parse");
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -11,33 +7,10 @@ const openai = new OpenAI({
 
 export async function POST(req: NextRequest) {
   try {
-    const formData = await req.formData();
-    const file = formData.get("file") as File;
+    const { text } = await req.json();
 
-    if (!file) {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 });
-    }
-
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    
-    let resumeText = "";
-
-    try {
-      if (file.type === "application/pdf") {
-        // Use the require-loaded pdf-parse
-        const data = await pdf(buffer);
-        resumeText = data.text;
-      } else {
-        resumeText = buffer.toString("utf-8");
-      }
-    } catch (parseError) {
-      console.error("PDF Parsing Error:", parseError);
-      return NextResponse.json({ error: "Could not read this file. Please ensure it is a valid PDF." }, { status: 400 });
-    }
-
-    if (!resumeText || resumeText.length < 50) {
-      return NextResponse.json({ error: "Could not extract enough text from resume" }, { status: 400 });
+    if (!text || text.length < 50) {
+      return NextResponse.json({ error: "No valid resume text provided" }, { status: 400 });
     }
 
     const response = await openai.chat.completions.create({
@@ -59,7 +32,7 @@ export async function POST(req: NextRequest) {
         },
         {
           role: "user",
-          content: `Analyze this resume text: \n\n ${resumeText}`
+          content: `Analyze this resume text: \n\n ${text}`
         }
       ],
       response_format: { type: "json_object" }
