@@ -46,6 +46,7 @@ export async function POST(req: NextRequest) {
           - improvements: (array of 3 strings)
           - suggestions: (array of 3 objects with 'title' and 'desc')
           - level: (string: 'Poor', 'Fair', 'Good', 'Excellent')
+          - timestamp: (string: current ISO timestamp)
           
           Be critical but constructive. Focus on keywords, quantifiable metrics, and professional formatting.`
         },

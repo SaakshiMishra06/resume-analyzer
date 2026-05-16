@@ -14,6 +14,7 @@ interface AnalysisResult {
   improvements: string[];
   suggestions: { title: string; desc: string }[];
   level: string;
+  timestamp?: string;
 }
 
 export default function ResumeAnalysis() {
@@ -157,6 +158,10 @@ export default function ResumeAnalysis() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <Card className="glass md:col-span-1 border-primary/30 relative overflow-hidden">
                    <div className="absolute inset-0 bg-primary/5"></div>
+                   <div className="absolute top-2 right-2 bg-green-500/20 text-green-400 text-[10px] px-2 py-0.5 rounded-full border border-green-500/30 flex items-center gap-1">
+                     <div className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
+                     AI Active
+                   </div>
                    <CardContent className="p-8 text-center relative z-10 flex flex-col items-center justify-center h-full">
                       <div className="relative w-32 h-32 mb-4">
                         <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
@@ -185,6 +190,9 @@ export default function ResumeAnalysis() {
                       </div>
                       <h3 className="text-xl font-bold text-white mb-1">{results.level}</h3>
                       <p className="text-sm text-gray-400">Your ATS compatibility score</p>
+                      {results.timestamp && (
+                        <p className="text-[10px] text-gray-600 mt-4 italic">Analysis Date: {new Date(results.timestamp).toLocaleString()}</p>
+                      )}
                    </CardContent>
                 </Card>
 

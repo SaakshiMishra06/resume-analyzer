@@ -130,21 +130,11 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-6">
-                {[
-                  { title: "Senior Frontend Engineer Resume", desc: "Analyzed 2 hours ago", score: 94 },
-                  { title: "Mock Interview: React Developer", desc: "Completed yesterday", score: 85 },
-                  { title: "Product Manager Resume", desc: "Analyzed 3 days ago", score: 72 },
-                ].map((item, i) => (
-                  <div key={i} className="flex items-start justify-between border-b border-white/5 pb-4 last:border-0 last:pb-0">
-                    <div>
-                      <h4 className="text-sm font-medium text-white mb-1">{item.title}</h4>
-                      <p className="text-xs text-gray-400">{item.desc}</p>
-                    </div>
-                    <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center border border-white/10">
-                      <span className="text-xs font-bold text-gradient">{item.score}</span>
-                    </div>
-                  </div>
-                ))}
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <FileText className="w-12 h-12 text-gray-600 mb-3 opacity-20" />
+                  <p className="text-sm text-gray-500">No recent activity found.</p>
+                  <p className="text-xs text-gray-600">Analyze a resume to see it here.</p>
+                </div>
               </div>
             </CardContent>
           </Card>
