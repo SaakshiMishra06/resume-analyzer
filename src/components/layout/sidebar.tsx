@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
   FileText,
@@ -10,8 +10,10 @@ import {
   Settings,
   LogOut,
   BrainCircuit,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 
 const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -20,9 +22,12 @@ const navItems = [
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
-import { createClient } from "@/lib/supabase/client";
+interface SidebarProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
 
-export function Sidebar() {
+export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const supabase = createClient();
 
@@ -31,24 +36,30 @@ export function Sidebar() {
     window.location.href = "/";
   };
 
-  return (
-    <div className="flex h-screen w-64 flex-col glass-panel border-r border-white/10">
-      <div className="p-6">
-        <Link href="/" className="flex items-center gap-2 mb-8">
+  const SidebarContent = (
+    <div className="flex h-full w-full flex-col glass-panel border-r border-white/10 bg-black/90 backdrop-blur-xl md:bg-transparent">
+      <div className="p-6 flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-2">
           <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-[#3b82f6] to-[#8b5cf6]">
             <BrainCircuit className="w-5 h-5 text-white" />
           </div>
           <span className="font-bold text-lg tracking-tight text-white">AI Resume</span>
         </Link>
+        <button onClick={onClose} className="md:hidden text-gray-400 hover:text-white">
+          <X className="w-6 h-6" />
+        </button>
       </div>
 
-      <nav className="flex-1 space-y-2 px-4">
+      <nav className="flex-1 space-y-2 px-4 overflow-y-auto">
         {navItems.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
           return (
             <Link
               key={item.name}
               href={item.href}
+              onClick={() => {
+                if (window.innerWidth < 768) onClose();
+              }}
               className={cn(
                 "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative",
                 isActive
@@ -81,5 +92,38 @@ export function Sidebar() {
         </button>
       </div>
     </div>
+  );
+
+  return (
+    <>
+      {/* Desktop Sidebar */}
+      <div className="hidden md:flex h-screen w-64 flex-col fixed inset-y-0 z-50">
+        {SidebarContent}
+      </div>
+
+      {/* Mobile Sidebar Overlay */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] md:hidden"
+            onClick={onClose}
+          >
+            <motion.div
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="h-full w-72"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {SidebarContent}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
