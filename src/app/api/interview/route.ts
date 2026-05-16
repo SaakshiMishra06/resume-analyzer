@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,30 +11,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid messages format" }, { status: 400 });
     }
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: `You are an expert technical interviewer for a modern software engineering company. 
-          Your goal is to conduct a realistic mock interview. 
-          - Keep your responses concise (1-3 sentences).
-          - Focus on behavioral and technical skills.
-          - Ask one follow-up question at a time.
-          - Provide subtle, constructive feedback if the user's answer is weak.`
-        },
-        ...messages.map((m: any) => ({
-          role: (m.role === "ai" ? "assistant" : "user") as "assistant" | "user",
-          content: m.text as string
-        }))
-      ],
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    // Convert message history for Gemini
+    const chat = model.startChat({
+      history: messages.slice(0, -1).map((m: any) => ({
+        role: m.role === "ai" ? "model" : "user",
+        parts: [{ text: m.text }],
+      })),
+      generationConfig: {
+        maxOutputTokens: 200,
+      },
     });
 
-    const aiMessage = response.choices[0].message.content;
+    const lastMessage = messages[messages.length - 1].text;
+    const result = await chat.sendMessage(lastMessage);
+    const response = await result.response;
+    const aiMessage = response.text();
 
     return NextResponse.json({ text: aiMessage });
   } catch (error: any) {
-    console.error("Interview AI Error:", error);
-    return NextResponse.json({ error: "Failed to connect to AI" }, { status: 500 });
+    console.error("Gemini Interview Error:", error);
+    return NextResponse.json({ error: "Failed to connect to Gemini AI" }, { status: 500 });
   }
 }
