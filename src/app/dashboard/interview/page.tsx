@@ -10,9 +10,7 @@ import { Mic, Square, Play, Send, Bot, User, Settings2, Loader2 } from "lucide-r
 export default function InterviewCoach() {
   const [isRecording, setIsRecording] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
-  const [messages, setMessages] = React.useState([
-    { role: "ai", text: "Hello! I'm your AI Interview Coach. I've reviewed your background. Are you ready to start our mock interview for a Senior Engineering role?" }
-  ]);
+  const [messages, setMessages] = React.useState<any[]>([]);
   const [inputText, setInputText] = React.useState("");
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
@@ -21,6 +19,34 @@ export default function InterviewCoach() {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
+  // Dynamically initialize the interview greeting based on their real resume
+  React.useEffect(() => {
+    const initInterview = async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch("/api/interview", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages: [] }),
+        });
+        const data = await response.json();
+        if (response.ok) {
+          setMessages([{ role: "ai", text: data.text }]);
+        } else {
+          throw new Error(data.error);
+        }
+      } catch (err) {
+        console.error(err);
+        setMessages([
+          { role: "ai", text: "Hello! I'm your AI Interview Coach. I'm ready to conduct our mock interview. Can you introduce yourself and tell me what role you're interviewing for today?" }
+        ]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    initInterview();
+  }, []);
 
   const handleSend = async () => {
     if (!inputText.trim() || isLoading) return;
@@ -60,16 +86,21 @@ export default function InterviewCoach() {
             <h1 className="text-3xl font-bold text-white mb-2">AI Interview Coach</h1>
             <p className="text-gray-400">Practice behavioral and technical questions.</p>
           </div>
-          <Button variant="outline" size="sm" className="gap-2">
-            <Settings2 className="w-4 h-4" />
-            Configure Interview
-          </Button>
         </div>
 
         <div className="flex-1 flex flex-col md:flex-row gap-6 min-h-0">
           {/* Main Chat Interface */}
           <Card className="glass flex-1 flex flex-col overflow-hidden">
             <CardContent ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6">
+              {messages.length === 0 && isLoading && (
+                <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
+                  <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center">
+                    <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                  </div>
+                  <p className="text-sm text-gray-400 font-medium animate-pulse">Reading your resume and prepping the coach...</p>
+                </div>
+              )}
+              
               {messages.map((msg, i) => (
                 <motion.div 
                   key={i}
@@ -91,7 +122,7 @@ export default function InterviewCoach() {
                   </div>
                 </motion.div>
               ))}
-              {isLoading && (
+              {messages.length > 0 && isLoading && (
                 <motion.div 
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -169,7 +200,7 @@ export default function InterviewCoach() {
                 </div>
                 <div className="p-4 rounded-xl bg-white/5 border border-white/10">
                    <h4 className="text-xs text-gray-400 uppercase mb-2">AI Model</h4>
-                   <p className="text-sm text-white font-medium">GPT-4o (Advanced)</p>
+                   <p className="text-sm text-white font-medium">Llama 3.3 (Groq AI)</p>
                 </div>
                 <div className="mt-auto pt-6 text-center">
                    <p className="text-xs text-gray-500 italic">"The AI tracks your answers to provide a final score at the end."</p>
