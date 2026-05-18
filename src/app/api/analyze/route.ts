@@ -53,7 +53,8 @@ export async function POST(req: NextRequest) {
         user_id: user.id,
         score: analysis.score,
         level: analysis.level,
-        summary: analysis.summary
+        summary: analysis.summary,
+        raw_data: analysis // Save full report in jsonb
       });
     }
 

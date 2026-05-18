@@ -11,6 +11,7 @@ import {
   LogOut,
   BrainCircuit,
   X,
+  History,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -19,6 +20,7 @@ const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Resume Analysis", href: "/dashboard/resume", icon: FileText },
   { name: "Interview Coach", href: "/dashboard/interview", icon: Mic },
+  { name: "History", href: "/dashboard/history", icon: History },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 

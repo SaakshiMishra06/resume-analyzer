@@ -12,6 +12,7 @@ export default function InterviewCoach() {
   const [isLoading, setIsLoading] = React.useState(false);
   const [messages, setMessages] = React.useState<any[]>([]);
   const [inputText, setInputText] = React.useState("");
+  const [interviewId, setInterviewId] = React.useState<string | null>(null);
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -33,6 +34,7 @@ export default function InterviewCoach() {
         const data = await response.json();
         if (response.ok) {
           setMessages([{ role: "ai", text: data.text }]);
+          setInterviewId(data.id);
         } else {
           throw new Error(data.error);
         }
@@ -62,7 +64,10 @@ export default function InterviewCoach() {
       const response = await fetch("/api/interview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: newMessages }),
+        body: JSON.stringify({ 
+          messages: newMessages,
+          interviewId: interviewId 
+        }),
       });
 
       const data = await response.json();

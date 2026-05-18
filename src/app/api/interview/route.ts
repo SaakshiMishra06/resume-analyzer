@@ -8,7 +8,7 @@ const groq = new Groq({
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages } = await req.json();
+    const { messages, interviewId } = await req.json();
     const supabase = await createClient();
     
     // Get current user
@@ -68,14 +68,35 @@ export async function POST(req: NextRequest) {
 
     const aiText = response.choices[0].message.content;
 
-    // Save a new interview session record in Supabase on initialization
-    if (user && messages.length === 0) {
-      await supabase.from("interviews").insert({
-        user_id: user.id
-      });
+    let activeId = interviewId;
+
+    if (user) {
+      if (messages.length === 0) {
+        // Save initial interview session record in Supabase
+        const { data: inserted } = await supabase
+          .from("interviews")
+          .insert({
+            user_id: user.id,
+            transcript: [{ role: "ai", text: aiText }]
+          })
+          .select("id")
+          .single();
+
+        if (inserted) {
+          activeId = inserted.id;
+        }
+      } else if (interviewId) {
+        // Update the transcript for the current interview session
+        await supabase
+          .from("interviews")
+          .update({
+            transcript: [...messages, { role: "ai", text: aiText }]
+          })
+          .eq("id", interviewId);
+      }
     }
 
-    return NextResponse.json({ text: aiText });
+    return NextResponse.json({ text: aiText, id: activeId });
   } catch (error: any) {
     console.error("Groq Interview Error:", error);
     return NextResponse.json({ error: `AI Error: ${error.message}` }, { status: 500 });
